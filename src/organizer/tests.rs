@@ -93,6 +93,13 @@ fn operation_history_model_covers_statuses_and_per_file_outcomes() {
     assert_eq!(record.files[1].outcome, FileOperationOutcome::Failed);
     assert!(record.files[1].error.is_some());
 }
+
+#[test]
+fn relative_paths_use_portable_forward_slash_separators() {
+    let relative =
+        RelativePath::from_path(Path::new("folder/nested/file.txt")).expect("valid relative path");
+    assert_eq!(relative.as_str(), "folder/nested/file.txt");
+}
 use std::{
     collections::BTreeMap,
     fs,
@@ -217,16 +224,18 @@ fn hidden_directories_build_directories_and_dotfiles_have_predictable_policy() {
         fs::create_dir(&ignored).expect("ignored directory");
         fs::write(ignored.join("inside.rs"), b"not included").expect("nested sample");
     }
-    for name in [
+    let metadata_names = vec![
         ".DS_Store",
         ".localized",
         ".metadata_never_index",
         "._photo.jpg",
+        #[cfg(not(windows))]
         "Icon\r",
         ".VolumeIcon.icns",
         ".LSOverride",
         ".com.apple.timemachine.donotpresent",
-    ] {
+    ];
+    for name in metadata_names {
         fs::write(root.path().join(name), b"metadata").expect("macOS metadata sample");
     }
     for directory in [

@@ -53,25 +53,21 @@ impl RelativePath {
     pub(crate) fn from_path(path: &Path) -> Result<Self, EngineError> {
         use std::path::Component;
 
-        if path.as_os_str().is_empty()
-            || path
-                .components()
-                .any(|component| !matches!(component, Component::Normal(_)))
-        {
+        let components = path
+            .components()
+            .map(|component| match component {
+                Component::Normal(name) => name.to_str(),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>();
+        let Some(components) = components.filter(|components| !components.is_empty()) else {
             return Err(EngineError::new(
                 EngineErrorKind::InvalidRelativePath,
                 "Path must contain only normal relative components.",
             ));
-        }
+        };
 
-        let value = path.to_str().ok_or_else(|| {
-            EngineError::new(
-                EngineErrorKind::InvalidRelativePath,
-                "Path cannot be represented as valid Unicode.",
-            )
-        })?;
-
-        Ok(Self(value.to_owned()))
+        Ok(Self(components.join("/")))
     }
 
     pub fn as_str(&self) -> &str {
