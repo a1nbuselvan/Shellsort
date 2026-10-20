@@ -24,4 +24,4 @@ The site uses relative links such as `./styles.css`, so assets resolve both at t
 
 The workflow at `.github/workflows/pages.yml` deploys only pushes to `main` that change `website/**` or that workflow. Before the first deployment, a repository administrator must configure GitHub Pages to use **GitHub Actions** as its build and deployment source. No deployment is performed by local preview or validation.
 
-The download area intentionally remains “Coming soon” until versioned release assets and their archive checksums are verified and published. Homebrew instructions remain unavailable while the tap formula contains placeholders.
+The download area links to the published `v0.1.0-beta.1` macOS archives and their SHA-256 files. The beta is not Apple-notarized. Homebrew installation remains unavailable while the tap formula contains placeholders.

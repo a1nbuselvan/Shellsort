@@ -153,7 +153,7 @@
         <div class="docs-heading">
           <p class="eyebrow">Made for the terminal</p>
           <h2 id="docs-title">A clear path<br><span>from preview to action.</span></h2>
-          <p>Install when a verified release is available. Start with a read-only preview, then organize only after reviewing the plan.</p>
+          <p>Install the verified beta release. Start with a read-only preview, then organize only after reviewing the plan.</p>
         </div>
         <div class="docs-panel">
           <div class="docs-tabs" aria-label="Command examples"><span class="docs-tab-active">Quick start</span><span>macOS</span></div>
@@ -172,22 +172,22 @@
         <div class="download-heading">
           <p class="eyebrow">Shellsort for macOS</p>
           <h2 id="download-title">Your files,<br><span>back in their place.</span></h2>
-          <p>The beta build passed native Apple Silicon and Intel build checks. Verified public release downloads are not available yet.</p>
+          <p>Download the published beta for Apple Silicon or Intel. Verify its SHA-256 checksum before installing.</p>
         </div>
         <div class="download-card">
           <div class="download-card-top">
             <div class="version-mark"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 8.5h20M6 16h14M6 23.5h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="23.5" r="3.2" fill="currentColor"/></svg></span></div>
             <div><span class="version-label">CURRENT BETA</span><h3>Shellsort <span>0.1.0-beta.1</span></h3></div>
-            <span class="coming-badge">Coming soon</span>
+            <span class="release-badge">Beta release</span>
           </div>
           <div class="download-targets">
-            <div><span class="target-icon" aria-hidden="true">⌘</span><span><b>Apple Silicon</b><small>aarch64-apple-darwin</small></span><span class="target-soon">Coming soon</span></div>
-            <div><span class="target-icon target-icon-muted" aria-hidden="true">⌘</span><span><b>Intel</b><small>x86_64-apple-darwin</small></span><span class="target-soon">Coming soon</span></div>
+            <div><span class="target-icon" aria-hidden="true">⌘</span><span><b>Apple Silicon</b><small>aarch64-apple-darwin</small></span><span class="target-actions"><a class="target-download" href="https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz" aria-label="Download Apple Silicon archive">Download</a><a class="target-checksum" href="https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz.sha256" aria-label="Download Apple Silicon SHA-256 checksum">SHA-256</a></span></div>
+            <div><span class="target-icon target-icon-muted" aria-hidden="true">⌘</span><span><b>Intel</b><small>x86_64-apple-darwin</small></span><span class="target-actions"><a class="target-download" href="https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz" aria-label="Download Intel archive">Download</a><a class="target-checksum" href="https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz.sha256" aria-label="Download Intel SHA-256 checksum">SHA-256</a></span></div>
           </div>
-          <div class="download-card-note"><span aria-hidden="true">ⓘ</span> No published archive or checksum is available yet. Homebrew installation is not available.</div>
+          <div class="download-card-note"><span aria-hidden="true">ⓘ</span> Beta software; not Apple-notarized. Homebrew installation is not available.</div>
         </div>
         <div class="install-guide">
-          <div class="install-copy"><span class="install-step">01 / WHEN RELEASED</span><h3>Verify before installing.</h3><p>Choose the archive for your Mac. Verify its accompanying SHA-256 file before extracting or installing it.</p></div>
+          <div class="install-copy"><span class="install-step">01 / BETA RELEASE</span><h3>Verify before installing.</h3><p>Choose the archive for your Mac. Verify its accompanying SHA-256 file before extracting or installing it.</p></div>
           <pre class="install-code"><code><span class="code-comment"># Verify the downloaded archive</span>
 shasum -a 256 -c "$ARCHIVE.sha256"
 

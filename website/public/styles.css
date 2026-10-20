@@ -165,7 +165,7 @@ h1 span, h2 span { color: #aaa0b7; }
 .version-label { display: block; margin-bottom: 4px; color: #91849f; font-size: 8px; font-weight: 650; letter-spacing: .13em; }
 .download-card h3 { margin: 0; font-size: 15px; font-weight: 550; }
 .download-card h3 span { margin-left: 4px; color: #8f8997; font-size: 11px; font-weight: 450; }
-.coming-badge { margin-left: auto; padding: 6px 9px; border: 1px solid #d0b77942; border-radius: 20px; color: #dfc987; background: #c7a74c0c; font-size: 9px; }
+.release-badge { margin-left: auto; padding: 6px 9px; border: 1px solid #d0b77942; border-radius: 20px; color: #dfc987; background: #c7a74c0c; font-size: 9px; }
 .download-targets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 18px 0; }
 .download-targets > div { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 1px solid #ffffff0d; border-radius: 9px; background: #ffffff03; }
 .target-icon { width: 30px; height: 30px; display: grid; flex-shrink: 0; place-items: center; border-radius: 8px; color: #c5adff; background: #a98bff15; font-size: 17px; }
@@ -174,6 +174,11 @@ h1 span, h2 span { color: #aaa0b7; }
 .download-targets b { color: #ded9e4; font-size: 10px; font-weight: 550; }
 .download-targets small { overflow-wrap: anywhere; color: #77717f; font: 8px ui-monospace, monospace; }
 .target-soon { margin-left: auto; color: #9b94a2; font-size: 9px; white-space: nowrap; }
+.target-actions { display: grid; flex-shrink: 0; justify-items: end; gap: 5px; margin-left: auto; }
+.target-download { display: inline-flex; align-items: center; justify-content: center; padding: 6px 9px; border: 1px solid #a98bff55; border-radius: 6px; color: #e4d8ff; background: #a98bff12; font-size: 9px; white-space: nowrap; }
+.target-download:hover { border-color: #c1a7ff; background: #a98bff24; }
+.target-checksum { color: #aaa1b3; font-size: 8px; white-space: nowrap; text-decoration: underline; text-decoration-color: #aaa1b366; text-underline-offset: 2px; }
+.target-checksum:hover { color: #e4d8ff; }
 .download-card-note { display: flex; align-items: flex-start; gap: 9px; padding-top: 16px; border-top: 1px solid #ffffff0d; color: #898391; font-size: 10px; }
 .download-card-note span { color: #c4a8ff; }
 .install-guide { display: grid; grid-template-columns: .7fr 1.3fr; gap: 34px; align-items: start; max-width: 850px; margin: 0 auto; }
