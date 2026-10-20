@@ -19,6 +19,7 @@ fn run(home: &TempDir, args: &[&str]) -> Output {
     command.output().expect("launch shellsort CLI")
 }
 
+#[cfg(unix)]
 fn prepare_app_data_parent(home: &TempDir) {
     fs::create_dir_all(journal_path(home).parent().unwrap().parent().unwrap())
         .expect("create isolated application-data parent");

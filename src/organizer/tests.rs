@@ -1,8 +1,9 @@
+#[cfg(unix)]
+use super::ScanIssueKind;
 use super::{
     Category, ConflictStatus, EngineErrorKind, FileIdentity, FileOperationError,
     FileOperationOutcome, FileOperationRecord, OperationRecord, OperationStatus,
-    OrganizationSettings, PlanStatus, RelativePath, ScanIssueKind, ScanWarningKind,
-    UnknownFileTypeBehavior,
+    OrganizationSettings, PlanStatus, RelativePath, ScanWarningKind, UnknownFileTypeBehavior,
     classification::{classify_file_name, extension_for_name},
     generate_plan, generate_plan_with_settings, scan_folder,
 };
@@ -316,6 +317,7 @@ fn root_and_entries_that_are_symlinks_are_not_followed() {
 }
 
 #[test]
+#[cfg(unix)]
 fn non_unicode_names_are_skipped_with_a_warning_on_unix() {
     use std::os::unix::ffi::OsStrExt;
 
@@ -645,6 +647,7 @@ fn custom_unicode_destination_uses_existing_case_and_unicode_collision_rules() {
 }
 
 #[test]
+#[cfg(unix)]
 fn unreadable_nested_directory_is_a_recoverable_issue_when_permissions_enforce_it() {
     use std::os::unix::fs::PermissionsExt;
 

@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 use super::scan::is_macos_metadata_path;
 use super::{
     FileIdentity, FileOperationError, FileOperationOutcome, FileOperationRecord, OperationRecord,
@@ -1240,6 +1241,7 @@ fn move_issue(kind: &str, message: impl Into<String>) -> MoveIssue {
         uncertain: false,
     }
 }
+#[cfg(target_os = "macos")]
 fn uncertain_issue(kind: &str, message: impl Into<String>) -> MoveIssue {
     MoveIssue {
         kind: kind.to_owned(),
@@ -1255,6 +1257,7 @@ fn same_after_rename(left: &FileIdentity, right: &FileIdentity) -> bool {
         && left.modified_seconds == right.modified_seconds
         && left.modified_nanoseconds == right.modified_nanoseconds
 }
+#[cfg(target_os = "macos")]
 fn move_issue_skip(kind: &str, message: impl Into<String>) -> MoveIssue {
     MoveIssue {
         kind: kind.to_owned(),
@@ -1263,6 +1266,7 @@ fn move_issue_skip(kind: &str, message: impl Into<String>) -> MoveIssue {
         uncertain: false,
     }
 }
+#[cfg(target_os = "macos")]
 fn last_issue(context: &str) -> MoveIssue {
     let error = std::io::Error::last_os_error();
     move_issue("io_error", format!("{context} {error}"))
@@ -1271,10 +1275,12 @@ fn last_issue(context: &str) -> MoveIssue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
     use crate::organizer::{OrganizationSettings, generate_plan_with_settings};
     use std::{fs, path::PathBuf};
     use tempfile::tempdir;
 
+    #[cfg(target_os = "macos")]
     fn fixture(name: &str, bytes: &[u8]) -> (tempfile::TempDir, OrganizationPlan) {
         let root = tempdir().unwrap();
         fs::write(root.path().join(name), bytes).unwrap();

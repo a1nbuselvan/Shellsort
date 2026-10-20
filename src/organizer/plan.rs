@@ -268,7 +268,7 @@ fn probe_destination(root: &Path, destination: &RelativePath) -> DestinationProb
     DestinationProbe::Absent
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::{DestinationProbe, probe_destination};
     use crate::organizer::RelativePath;
