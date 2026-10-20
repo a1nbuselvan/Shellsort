@@ -1,0 +1,129 @@
+name: macOS release builds
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Apple Silicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - label: Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_version="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "shellsort"))')"
+          if [[ "$tag_version" != "$package_version" ]]; then
+            echo "Tag version $tag_version does not match Cargo package version $package_version." >&2
+            exit 1
+          fi
+
+      - name: Build release binary
+        run: cargo build --locked --release --target ${{ matrix.target }} --bin shellsort
+
+      - name: Verify executable architecture
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          case "$TARGET" in
+            aarch64-apple-darwin) expected_arch=arm64 ;;
+            x86_64-apple-darwin) expected_arch=x86_64 ;;
+            *) echo "Unexpected macOS target: $TARGET" >&2; exit 1 ;;
+          esac
+          actual_arch="$(lipo -archs "target/${TARGET}/release/shellsort")"
+          test "$actual_arch" = "$expected_arch"
+
+      - name: Package, smoke-test, and checksum archive
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PACKAGE_VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${PACKAGE_VERSION#v}"
+          archive="shellsort-v${version}-${TARGET}.tar.gz"
+          stage="$RUNNER_TEMP/shellsort-package"
+          scratch="$RUNNER_TEMP/shellsort-smoke"
+          mkdir -p "$stage" "$scratch/home" "$scratch/fixture" "$scratch/extracted" "$scratch/install/bin" dist
+          install -m 755 "target/${TARGET}/release/shellsort" "$stage/shellsort.unstripped"
+          xcrun strip -S -o "$stage/shellsort" "$stage/shellsort.unstripped"
+          install -m 755 organizer.sh "$stage/organizer.sh"
+          install -m 644 LICENSE "$stage/LICENSE"
+
+          tar -czf "dist/${archive}" -C "$stage" shellsort organizer.sh LICENSE
+          (cd dist && shasum -a 256 "$archive" > "${archive}.sha256")
+          (cd dist && shasum -a 256 -c "${archive}.sha256")
+
+          tar -xzf "dist/${archive}" -C "$scratch/extracted"
+          install -m 755 "$scratch/extracted/shellsort" "$scratch/install/bin/shellsort"
+          install -m 755 "$scratch/extracted/organizer.sh" "$scratch/install/bin/organizer.sh"
+          cd "$scratch/install/bin"
+          export HOME="$scratch/home"
+          export PATH="$PWD:$PATH"
+          shellsort --version | grep -Fx "shellsort ${version}"
+
+          printf 'beta fixture\n' > "$scratch/fixture/sample file.txt"
+          shellsort "$scratch/fixture" --json > "$scratch/preview.json"
+          python3 - "$scratch/preview.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              preview = json.load(stream)
+          assert any(entry["source"] == "sample file.txt" for entry in preview["entries"])
+          PY
+          test -f "$scratch/fixture/sample file.txt"
+          test ! -e "$scratch/fixture/Documents"
+
+          set +e
+          organizer.sh "$scratch/fixture" > "$scratch/declined.txt" 2>&1
+          declined_status=$?
+          set -e
+          test "$declined_status" -ne 0
+          grep -F 'pass --yes' "$scratch/declined.txt"
+          test -f "$scratch/fixture/sample file.txt"
+          test ! -e "$scratch/fixture/Documents/sample file.txt"
+
+          organizer.sh "$scratch/fixture" --yes > "$scratch/organized.txt"
+          test ! -e "$scratch/fixture/sample file.txt"
+          test -f "$scratch/fixture/Documents/sample file.txt"
+
+          operation_id="$(shellsort history --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["operation_id"])')"
+          shellsort undo "$scratch/fixture" "$operation_id" --yes > "$scratch/undo.txt"
+          test -f "$scratch/fixture/sample file.txt"
+          test ! -e "$scratch/fixture/Documents/sample file.txt"
+
+      - name: Upload versioned archive and checksum as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shellsort-${{ matrix.target }}-${{ github.ref_name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

@@ -1,7 +1,7 @@
 class Shellsort < Formula
   desc "Terminal-first macOS file organizer"
   homepage "https://github.com/a1nbuselvan/Shellsort"
-  version "0.1.0"
+  version "0.1.0-beta.1"
 
   depends_on :macos
 

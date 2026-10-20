@@ -2,7 +2,7 @@
 
 Shellsort is a native Rust command-line file organizer for macOS. The default command scans metadata and prints a proposed plan without changing files. Organization requires a fresh plan and an explicit confirmation. The shared Rust engine validates roots and paths, rejects symlinks and unsafe entries, avoids overwrites, journals operations, and supports recovery and undo. Cross-filesystem moves are rejected. `.DS_Store`, AppleDouble sidecars (`._*`), and known macOS metadata markers/directories are excluded by default. Duplicate comparison reads file bytes locally; it does not upload them. No web server, desktop window, background watcher, or network service is required.
 
-The CI workflow is configured to compile and test on macOS arm64, macOS Intel, Ubuntu Linux, and Windows; those jobs have not yet run for this uncommitted workflow. This does not by itself declare all-platform product support: safe organization moves, journal recovery, resume, and undo are enabled only on macOS. Linux and Windows jobs are intended to verify compilation, tests, preview/hash behavior, and safe refusal of unsupported mutations. Do not claim full Linux or Windows support until the platform-specific filesystem behavior and CI results have been reviewed.
+The CI workflow passed on macOS arm64, macOS Intel, Ubuntu Linux, and Windows for commit `fa7bfef3898c7d5a43ebf0ad2a0475ee9863edc9` ([run 39400104119](https://github.com/a1nbuselvan/Shellsort/actions/runs/39400104119)). This does not declare all-platform mutation support: file moves, journal recovery, resume, and undo remain enabled only on macOS. Linux and Windows verify compilation, tests, preview/hash behavior, and safe refusal of unsupported mutations.
 
 ## Development
 
@@ -58,22 +58,61 @@ git diff --check
 
 CLI integration tests use temporary directories and disposable files. Do not point tests or organization commands at the real Downloads folder or personal documents.
 
-## Versioned macOS CLI releases
+## First macOS beta release
 
-The intended release targets are Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`). Build and test each architecture on a native or otherwise verified matching macOS host. A successful Apple Silicon build does not verify Intel compatibility. For a tagged version `vX.Y.Z`, build each binary and stage a versioned archive containing `shellsort`, executable `organizer.sh`, and `LICENSE`:
+The supported release targets are Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`). Build and smoke-test each binary on a matching native runner. The checked-in [macOS release build workflow](.github/workflows/macos-release-build.yml) uses the same macOS runner labels that passed CI, pins Rust `1.99.1`, builds with `Cargo.lock`, tests the extracted release archive on disposable files, and uploads archives plus checksum files as workflow artifacts. It does not create or publish a GitHub release.
+
+The current local Mach-O metadata reports minimum macOS 11.0 for arm64 and 10.12 for Intel (`xcrun vtool -show-build`). Recheck the minimum OS on each final release artifact; the arm64 and Intel targets have different baselines.
+
+The workflow runs only for a pushed `v*` tag. The tag version must exactly match the package version in `Cargo.toml`. The selected candidate is `0.1.0-beta.1`, now recorded in `Cargo.toml`, the root `shellsort` package entry in `Cargo.lock`, and the formula draft. No beta tag has been created.
+
+For each target, the workflow creates an archive containing `shellsort`, executable `organizer.sh`, and `LICENSE`. It computes SHA-256 after the archive is finalized, then uploads both files as an Actions artifact. The checksum applies to that exact archive. Before attaching any assets to a GitHub draft prerelease, download each artifact and verify its checksum again. Do not replace an archive after publishing its checksum.
+
+The build pins the Rust toolchain and dependency lockfile, but runner images and Apple SDKs can change. Treat the builds as controlled/repeatable, not yet proven bit-for-bit reproducible. Verify reproducibility by building twice on the same runner/toolchain and comparing binary hashes; archive hashes will only match if archive metadata and compression output are also normalized. The local Rust 1.99.1 release build warned that its bundled `rust-objcopy` could not load `libLLVM.dylib` and left DWARF data in the executable. The release workflow therefore uses the native Xcode `strip -S` on the staged copy; this succeeded locally for both the arm64 executable and cross-built Intel executable and did not affect `shellsort --version`. The final archive, not an intermediate binary, is checksummed.
+
+### Signing and notarization
+
+The prepared workflow currently builds unsigned binaries and does not submit anything to Apple. Before recommending direct downloads broadly, decide whether to sign with Developer ID and notarize. Apple recommends notarizing distributed Mac software; its documented custom submission formats include ZIP, PKG, and DMG, while the current Homebrew-oriented asset is `.tar.gz`. The packaging format and ticket verification need to be settled before adding notarization. See [Apple's notarization overview](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) and [supported distribution containers](https://developer.apple.com/developer-id/).
+
+If signing/notarization is approved, the GitHub environment will need an Apple Developer account with a Developer ID Application certificate, the Team ID, and protected Actions secrets. A recommended API-key setup would use `APPLE_DEVELOPER_ID_P12_BASE64`, `APPLE_DEVELOPER_ID_P12_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, and `APPLE_API_PRIVATE_KEY_P8`. No Apple credentials or GitHub secrets were provided or inspected. The current artifact-only workflow needs no release-write permission or repository secret; a maintainer creates the draft prerelease manually in GitHub after reviewing the artifacts.
+
+Manual release steps after review and approval:
+
+1. Review the final diff and run the local checks below. Commit and push the version/workflow/docs changes through the normal approved process; verify CI on that commit.
+2. Confirm the remote `main` contains `0.1.0-beta.1`, then create and push the matching tag:
+
+   ```sh
+   git tag -a v0.1.0-beta.1 -m "Shellsort v0.1.0-beta.1"
+   git push origin v0.1.0-beta.1
+   ```
+
+3. Open the Actions run for that tag. Wait for both native jobs to pass; inspect the architecture checks, version output, read-only preview, non-interactive refusal, confirmed organize/undo fixture, and artifact upload.
+4. Download both workflow artifacts. Inspect each archive listing and checksum file, then independently verify from the directory containing the downloaded files:
+
+   ```sh
+   shasum -a 256 -c shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz.sha256
+   shasum -a 256 -c shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz.sha256
+   ```
+
+   Check that each archive contains only `shellsort`, executable `organizer.sh`, and `LICENSE`, and recheck each binary's minimum OS metadata with `vtool -show-build` on macOS.
+5. After maintainer review, create a **draft prerelease** manually at the existing GitHub repository, name it `v0.1.0-beta.1`, mark it as a prerelease, and attach the two exact `.tar.gz` files and their `.sha256` files. Use release notes that state mutation is macOS-only and Linux/Windows refuse it. Do not publish until manual installation, preview, confirmation, organize, history, undo, and uninstall checks pass on both Intel and Apple Silicon Macs using disposable folders.
+
+The workflow does not create the tag, GitHub release, or Homebrew tap. The tag commands above are documentation only; do not run them before review and approval.
+
+The target-specific build commands, when run on matching native hosts, are:
 
 ```sh
-cargo build --locked --release --target aarch64-apple-darwin --bin shellsort
-cargo build --locked --release --target x86_64-apple-darwin --bin shellsort
+cargo +1.99.1 build --locked --release --target aarch64-apple-darwin --bin shellsort
+cargo +1.99.1 build --locked --release --target x86_64-apple-darwin --bin shellsort
 ```
 
-Use archive names such as `shellsort-vX.Y.Z-aarch64-apple-darwin.tar.gz` and `shellsort-vX.Y.Z-x86_64-apple-darwin.tar.gz`. Generate SHA-256 checksums with `shasum -a 256`, verify them after upload, and publish the checksum values with the exact assets. Do not reuse a release tag or replace an asset after publishing its checksum.
+For this candidate, expected archive names are `shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz` and `shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz`. This repository does not yet have a published beta archive or checksum.
 
-For local archive smoke testing, extract into a temporary directory, put that directory first on `PATH`, verify `shellsort --version`, and run preview, explicit-confirmation, history, recovery, and undo checks only against disposable fixtures.
+For local archive smoke testing, extract into a temporary directory, put that directory first on `PATH`, verify `shellsort --version`, and run preview, explicit-confirmation, history, and undo checks only against disposable fixtures. Never run an organization command against personal folders during release verification.
 
 ## Homebrew custom tap preparation
 
-`packaging/homebrew-tap/Formula/shellsort.rb` is a placeholder template. The intended layout in a separately created custom-tap repository is:
+`packaging/homebrew-tap/Formula/shellsort.rb` is a placeholder template. Its remaining placeholders are two architecture-specific archive URLs and two matching SHA-256 values. The homepage is the confirmed project repository, `https://github.com/a1nbuselvan/Shellsort`. A separate tap repository has not been created or confirmed. The intended layout there is:
 
 ```text
 homebrew-shellsort/
@@ -81,8 +120,8 @@ homebrew-shellsort/
     └── shellsort.rb
 ```
 
-After a real project homepage/repository and versioned release archives exist, copy the formula layout into the tap and replace all URL and SHA-256 placeholders with verified values. Then run `brew style` and `brew audit --strict --online` against the completed formula and test installation on both architectures. This repository does not currently define the public project URL or contain published artifacts/checksums; `brew tap` and `brew install shellsort` are not available and must not be advertised as working.
+After the beta assets exist, create and confirm a public tap repository (for example, the GitHub repository name `homebrew-shellsort` under the project owner, if available). Copy the formula into `Formula/shellsort.rb`, retain version `0.1.0-beta.1`, and replace all four clearly marked URL/SHA-256 placeholders using the final GitHub release asset URLs and hashes computed from those exact archives. Then run `brew style`, `brew audit --strict --online`, and install/test on both Mac architectures. No tap repository or beta release exists yet; `brew tap` and `brew install shellsort` are not currently available and must not be advertised as working.
 
 ## Release blockers
 
-Before public distribution, publish immutable versioned archives for both supported architectures, verify their checksums and local installation behavior, complete manual tests on disposable folders, choose and document the real project/tap repository URLs, and replace and validate the Homebrew formula placeholders. Do not claim release readiness or public Homebrew availability before those steps are complete.
+Before public distribution, run the native release workflow for `v0.1.0-beta.1`, inspect and verify immutable archives/checksums, complete manual tests on both Macs using disposable folders, decide and complete signing/notarization, create the tap repository, replace and validate the Homebrew formula placeholders, and then publish an approved draft prerelease. Do not claim public Homebrew availability before a valid tap formula and published assets exist.
