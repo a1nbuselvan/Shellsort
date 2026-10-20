@@ -1,114 +1,193 @@
 # Shellsort
 
-Shellsort is a native Rust command-line file organizer for macOS. A folder scan prints a read-only preview; files move only after a fresh plan and explicit confirmation. No desktop app, web server, or background service is required.
+I built Shellsort because my Downloads folder kept filling up with files I could never find again. It started as a way to make that everyday mess easier to deal with.
 
-The original `organizer.sh` name remains available as a compatibility wrapper. It calls `shellsort organize` from `PATH`, displaying a fresh plan and requiring confirmation before moving files.
+Shellsort is a macOS command-line file organizer. It shows a proposed plan before anything moves, flags conflicts, and asks for confirmation before organizing. The first preview is read-only.
 
-## Install the macOS beta
+[Project website](https://a1nbuselvan.github.io/Shellsort/) · [Source code](https://github.com/a1nbuselvan/Shellsort)
 
-No beta release archives or Homebrew tap have been published yet. Once the first beta is available, download the matching archive and `.sha256` file from the GitHub Releases page. Choose `aarch64-apple-darwin` for Apple Silicon (`uname -m` prints `arm64`) or `x86_64-apple-darwin` for Intel (`uname -m` prints `x86_64`). The archives contain `shellsort`, `organizer.sh`, and `LICENSE`.
+## Install Shellsort on a Mac
 
-The current build metadata indicates macOS 11.0 or later for Apple Silicon and macOS 10.12 or later for Intel. These minimum versions will be rechecked on the final release artifacts.
+No Homebrew required. This beta is not signed or notarized by Apple. Download only from the official release page, verify the checksum, and review the plan before organizing files.
 
-Verify the downloaded archive before extracting it. Set `ARCHIVE` to its exact downloaded filename:
+### 1. Download the right build
+
+Open the [Shellsort v0.1.0-beta.1 release page](https://github.com/a1nbuselvan/Shellsort/releases/tag/v0.1.0-beta.1). Download the archive and its matching `.sha256` file. Choose the build for your Mac:
+
+- **Apple Silicon** (M1, M2, M3, M4 and later): [archive](https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz) · [SHA-256 file](https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz.sha256)
+- **Intel Mac**: [archive](https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz) · [SHA-256 file](https://github.com/a1nbuselvan/Shellsort/releases/download/v0.1.0-beta.1/shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz.sha256)
+
+If you are unsure which Mac you have, open Terminal and run:
 
 ```sh
-ARCHIVE="shellsort-vX.Y.Z-beta.N-aarch64-apple-darwin.tar.gz"
-shasum -a 256 -c "$ARCHIVE.sha256"
+uname -m
 ```
 
-After verification, extract and install to a user-owned directory. These commands stop if either executable already exists, so they will not replace an existing installation:
+`arm64` means Apple Silicon; `x86_64` means Intel.
+
+### 2. Verify the download
+
+Keep the archive and checksum file together in Downloads. In Terminal, run the command for the archive you downloaded:
+
+**Apple Silicon**
+
+```sh
+cd "$HOME/Downloads"
+shasum -a 256 -c shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz.sha256
+```
+
+**Intel Mac**
+
+```sh
+cd "$HOME/Downloads"
+shasum -a 256 -c shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz.sha256
+```
+
+Continue only if the result says `OK`. If verification fails, do not install that archive; download it again from the official release page and check once more.
+
+### 3. Extract the archive
+
+These commands make a named folder in Downloads and extract the files there. Run the command for your Mac:
+
+**Apple Silicon**
+
+```sh
+EXTRACTED_DIR="$HOME/Downloads/shellsort-v0.1.0-beta.1-aarch64-apple-darwin"
+if [ -e "$EXTRACTED_DIR" ] || [ -L "$EXTRACTED_DIR" ]; then
+  echo "$EXTRACTED_DIR already exists. Keep it or move it aside before extracting." >&2
+else
+  mkdir -p "$EXTRACTED_DIR" && \
+    tar -xzf "$HOME/Downloads/shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz" -C "$EXTRACTED_DIR"
+fi
+```
+
+**Intel Mac**
+
+```sh
+EXTRACTED_DIR="$HOME/Downloads/shellsort-v0.1.0-beta.1-x86_64-apple-darwin"
+if [ -e "$EXTRACTED_DIR" ] || [ -L "$EXTRACTED_DIR" ]; then
+  echo "$EXTRACTED_DIR already exists. Keep it or move it aside before extracting." >&2
+else
+  mkdir -p "$EXTRACTED_DIR" && \
+    tar -xzf "$HOME/Downloads/shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz" -C "$EXTRACTED_DIR"
+fi
+```
+
+The archive contains `shellsort`, the `organizer.sh` compatibility script, and the project license.
+
+### 4. Install it
+
+Set `EXTRACTED_DIR` to the folder you just created. Use the Apple Silicon path:
+
+```sh
+EXTRACTED_DIR="$HOME/Downloads/shellsort-v0.1.0-beta.1-aarch64-apple-darwin"
+```
+
+Or the Intel path:
+
+```sh
+EXTRACTED_DIR="$HOME/Downloads/shellsort-v0.1.0-beta.1-x86_64-apple-darwin"
+```
+
+Then run:
 
 ```sh
 mkdir -p "$HOME/.local/bin"
-test ! -e "$HOME/.local/bin/shellsort" && test ! -e "$HOME/.local/bin/organizer.sh" || {
-  echo "An executable already exists in $HOME/.local/bin; back it up or choose another install directory." >&2
-  exit 1
-}
-tar -xzf "$ARCHIVE"
-install -m 755 shellsort "$HOME/.local/bin/shellsort"
-install -m 755 organizer.sh "$HOME/.local/bin/organizer.sh"
+if [ -e "$HOME/.local/bin/shellsort" ] || [ -L "$HOME/.local/bin/shellsort" ] || \
+   [ -e "$HOME/.local/bin/organizer.sh" ] || [ -L "$HOME/.local/bin/organizer.sh" ]; then
+  echo "A Shellsort executable already exists in $HOME/.local/bin. Keep it or move it aside before installing." >&2
+else
+  install -m 755 "$EXTRACTED_DIR/shellsort" "$HOME/.local/bin/shellsort"
+  install -m 755 "$EXTRACTED_DIR/organizer.sh" "$HOME/.local/bin/organizer.sh"
+fi
 ```
 
-If `~/.local/bin` is not on `PATH`, add this line to `~/.zshrc`, then open a new terminal:
+The check prevents these commands from replacing an existing `shellsort` or `organizer.sh` executable.
+
+### 5. Add it to PATH
+
+If `shellsort` is not found after installation, add `~/.local/bin` to your zsh PATH. This command adds the line only if it is not already in `~/.zshrc`:
 
 ```sh
-export PATH="$HOME/.local/bin:$PATH"
+grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null || \
+  printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+source "$HOME/.zshrc"
 ```
 
-Verify installation with `shellsort --version`. For local development builds instead, use the instructions below.
+You can also open a new Terminal window for the updated PATH to take effect.
 
-## Install for local development
-
-Requirements: Rust stable via [rustup](https://rustup.rs/) and Xcode Command Line Tools on macOS when required by the Rust toolchain.
-
-From the repository root:
+### 6. Check the install
 
 ```sh
-cargo install --locked --path . --root "$HOME/.local"
-install -m 755 organizer.sh "$HOME/.local/bin/organizer.sh"
-export PATH="$HOME/.local/bin:$PATH"
 shellsort --version
 ```
 
-This installs a local development build. Shellsort is not currently published on Homebrew. See [RELEASE.md](RELEASE.md) for the beta release process and custom-tap requirements.
+It should print:
 
-## Use
-
-Preview is the default and does not change files:
-
-```sh
-shellsort ~/Downloads
-shellsort ~/Downloads --json
-shellsort duplicates ~/Downloads
+```text
+shellsort 0.1.0-beta.1
 ```
 
-Organizing shows a fresh plan and asks for the explicit confirmation phrase:
+### 7. Use Shellsort
+
+Start with a read-only preview. This command does not move files:
 
 ```sh
-shellsort organize ~/Downloads
+shellsort "$HOME/Downloads"
 ```
 
-`organizer.sh` is a compatibility wrapper for the explicit organize command. It displays a fresh plan and asks for confirmation; it does not perform a read-only preview. It can be run from any working directory after installing both commands:
+Read the plan and check the proposed destinations and conflicts. To organize, run the separate command and follow its confirmation prompt:
 
 ```sh
-organizer.sh ~/Downloads
+shellsort organize "$HOME/Downloads"
 ```
 
-The CLI also provides local operation history, recovery, resume, and undo:
+Shellsort makes a fresh plan before it asks. It will not silently overwrite an existing file. Back up important files before organizing, especially while using beta software.
+
+Other useful commands:
 
 ```sh
-shellsort history
-shellsort recover
-shellsort resume ~/Downloads <operation-id>
-shellsort undo ~/Downloads <operation-id>
+shellsort duplicates "$HOME/Downloads" # Find exact duplicate files
+shellsort history                      # Review operation history
+shellsort recover                      # Check for interrupted operations
+organizer.sh "$HOME/Downloads"         # Compatibility wrapper for organize
 ```
 
-Mutating commands require interactive confirmation. Use `--yes` only when explicitly authorizing a non-interactive operation. Test exclusively with disposable folders; do not use personal files for development checks.
+`organizer.sh` also organizes files, so it displays the plan and requires confirmation. It is not a read-only preview command.
+
+## Safety and current limits
+
+- Shellsort scans file metadata for previews; it does not read file contents during a scan. Exact duplicate detection reads candidate file bytes locally to compare them.
+- Previewing never moves files. Organizing, recovery, resume, and undo are separate actions with safety checks and a local operation journal.
+- Existing files are not overwritten. Unsafe paths, symbolic links, and unsupported file types are handled conservatively.
+- File-changing operations are supported only on macOS. Linux and Windows builds refuse those operations.
+- `.DS_Store`, AppleDouble sidecars (`._*`), and known macOS metadata paths are excluded from organization.
+- The beta is not signed or notarized by Apple. macOS may show a security warning. Do not bypass security protections unless you have independently verified the software and understand the risk.
+- The operation journal stays on your Mac and records paths and filenames. Shellsort does not upload files or use telemetry.
+- Homebrew installation is not available yet. There is no published tap formula with verified release checksums.
 
 ## Uninstall
 
-To remove the two executables installed in `~/.local/bin`:
+Remove the installed commands with confirmation:
 
 ```sh
-rm "$HOME/.local/bin/shellsort" "$HOME/.local/bin/organizer.sh"
+rm -i "$HOME/.local/bin/shellsort" "$HOME/.local/bin/organizer.sh"
 ```
 
-Uninstall leaves the local operation journal and history at `~/Library/Application Support/app.shellsort.desktop/`. Back it up before removing it manually if you want to preserve history or may need recovery information.
+This leaves the local operation journal and history in place. Uninstalling the commands does not remove your organized files.
 
-## Safety and behavior
+## Development
 
-- Scanning and planning inspect file metadata and do not read file contents.
-- Exact duplicate detection is an explicit command and reads file bytes locally for matching candidates; no data is uploaded.
-- Symbolic links and special filesystem entries are rejected or skipped. Unsafe roots and paths are refused.
-- Existing destinations are never overwritten. Cross-filesystem moves are rejected.
-- Operations use a local durable journal and support recovery and safe undo.
-- File moves, recovery, resume, and undo are enabled only on macOS. Other targets refuse those operations without modifying the selected folder.
-- `.DS_Store`, AppleDouble sidecars (`._*`), and known macOS metadata paths are excluded from organization.
-- A preview is informational and does not authorize a later move. Organize only after reviewing the fresh plan and the typed confirmation prompt.
-- Shellsort has no telemetry or cloud upload. Its operation journal is local and records folder paths and filenames; exact duplicate detection reads candidate file bytes locally.
+Requirements: stable Rust from [rustup](https://rustup.rs/) and Xcode Command Line Tools on macOS if your toolchain requires them.
 
-## Development checks
+From a checkout of this repository:
+
+```sh
+cargo run -- --help
+cargo run -- "$HOME/Downloads" # Read-only preview; use a disposable folder for testing
+```
+
+Run the checks before contributing:
 
 ```sh
 cargo fmt --check
@@ -117,4 +196,18 @@ cargo test
 git diff --check
 ```
 
-Tests use temporary directories and disposable files. For architecture targets, release artifacts, checksums, and Homebrew tap instructions, see [RELEASE.md](RELEASE.md).
+Tests use temporary folders and disposable files. Do not use personal folders for development tests.
+
+## Project layout
+
+```text
+src/                         Rust organizer and CLI
+tests/                       CLI integration tests
+.github/workflows/           CI, release builds, and Pages deployment
+website/                     Static project website
+packaging/homebrew-tap/       Formula draft; not installable yet
+organizer.sh                 Compatibility wrapper
+RELEASE.md                   Release and distribution notes
+```
+
+See [RELEASE.md](RELEASE.md) for release build details and Homebrew plans. Shellsort is open source under the terms in [LICENSE](LICENSE).
