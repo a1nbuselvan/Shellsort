@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#09080d">
+    <meta name="description" content="Shellsort previews a safe file organization plan for your Mac before anything moves.">
+    <title>Shellsort — Bring order to your files</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="./" aria-label="Shellsort home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M6 8.5h20M6 16h14M6 23.5h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="24" cy="23.5" r="3.2" fill="currentColor"/>
+            </svg>
+          </span>
+          <span>shellsort</span>
+        </a>
+
+        <nav class="desktop-nav" aria-label="Main navigation">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#documentation">Documentation</a>
+          <a class="nav-download" href="#download">Download <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <details class="mobile-nav">
+          <summary aria-label="Open navigation menu"><span></span><span></span></summary>
+          <nav aria-label="Mobile navigation">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#documentation">Documentation</a>
+            <a href="#download">Download</a>
+          </nav>
+        </details>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero section-wrap" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> A calmer way to sort things out</p>
+          <h1 id="hero-title">Bring order to<br><span>your files.</span></h1>
+          <p class="hero-subtitle">A safer way to organize your Mac. Preview every change. Organize with confidence. Undo when you need to.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#download">Explore downloads <span aria-hidden="true">↓</span></a>
+            <a class="button button-quiet" href="#how-it-works">See how it works <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="hero-note"><span class="shield-icon" aria-hidden="true">◈</span> Nothing moves until you review and confirm.</div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="visual-glow" aria-hidden="true"></div>
+          <div class="preview-card">
+            <div class="preview-topbar">
+              <div class="traffic-lights" aria-hidden="true"><i></i><i></i><i></i></div>
+              <span class="window-title">A sample preview</span>
+              <span class="window-menu" aria-hidden="true">•••</span>
+            </div>
+            <div class="preview-body">
+              <div class="terminal-command"><span class="prompt">$</span> shellsort ./sample-folder</div>
+              <div class="terminal-muted">Example output · disposable sample files</div>
+              <div class="terminal-rule"></div>
+              <div class="terminal-row"><span class="terminal-status">READY</span><span><b>cover.jpg</b><em> → </em>Images/cover.jpg</span></div>
+              <div class="terminal-row"><span class="terminal-status">READY</span><span><b>meeting notes.txt</b><em> → </em>Documents/meeting notes.txt</span></div>
+              <div class="terminal-rule"></div>
+              <div class="terminal-summary">Summary: 2 file(s) eligible to move; 0 conflict(s).</div>
+              <div class="terminal-footer"><span class="terminal-lock" aria-hidden="true">⌑</span> Preview only. No files were moved.</div>
+            </div>
+          </div>
+          <div class="float-chip"><span class="chip-check" aria-hidden="true">✓</span> Review first. Always.</div>
+        </div>
+      </section>
+
+      <section class="trust-strip" aria-label="Shellsort principles">
+        <div class="trust-inner">
+          <span><i aria-hidden="true">01</i> Preview before action</span>
+          <span><i aria-hidden="true">02</i> No silent overwrites</span>
+          <span><i aria-hidden="true">03</i> Local by design</span>
+        </div>
+      </section>
+
+      <section class="section section-wrap" id="features" aria-labelledby="features-title">
+        <div class="section-heading">
+          <p class="eyebrow">Clarity at every step</p>
+          <h2 id="features-title">Stay in control<br><span>of your files.</span></h2>
+          <p class="section-intro">Shellsort gives you a clear plan and keeps the final decision in your hands.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card feature-card-tall">
+            <div class="feature-icon icon-violet" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5h16M4 12h11M4 17.5h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18" cy="17.5" r="2" stroke="currentColor" stroke-width="1.7"/></svg>
+            </div>
+            <h3>See the plan first</h3>
+            <p>Scan file metadata and review proposed destinations before you choose to organize.</p>
+            <div class="mini-plan" aria-label="Example destinations">
+              <div><span>meeting notes.txt</span><b>Documents/</b></div>
+              <div><span>cover.jpg</span><b>Images/</b></div>
+              <div><span>archive.zip</span><b>Archives/</b></div>
+            </div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 6v5.7c0 4.3-2.8 7.4-7 8.8-4.2-1.4-7-4.5-7-8.8V6l7-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>Designed to avoid surprises</h3>
+            <p>Existing destinations are never silently replaced. Conflicts stay visible in the plan.</p>
+            <div class="feature-footnote"><span class="status-pill status-conflict">CONFLICT</span> Existing files are left in place.</div>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon icon-pink" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 8.5A7.5 7.5 0 0 1 18.4 6L20 8M20 8V4M20 8h-4M19 15.5A7.5 7.5 0 0 1 5.6 18L4 16m0 0v4m0-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>Recover with context</h3>
+            <p>Operations are journaled locally. Undo checks file identity and won’t overwrite a path that has changed.</p>
+            <div class="feature-footnote"><span class="journal-dot"></span> History stays on your Mac.</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow-section" id="how-it-works" aria-labelledby="workflow-title">
+        <div class="section-wrap workflow-inner">
+          <div class="workflow-copy">
+            <p class="eyebrow">Simple by design</p>
+            <h2 id="workflow-title">A better flow<br><span>for file cleanup.</span></h2>
+            <p>Shellsort starts read-only. You decide if and when a reviewed plan becomes an operation.</p>
+            <a class="text-link" href="#documentation">Read the safety notes <span aria-hidden="true">→</span></a>
+          </div>
+          <ol class="steps">
+            <li>
+              <span class="step-number">01</span>
+              <div><h3>Choose a folder</h3><p>Point Shellsort at a folder you want to review. It scans metadata, not file contents.</p></div>
+            </li>
+            <li>
+              <span class="step-number">02</span>
+              <div><h3>Review every destination</h3><p>See categories, conflicts, and the relative paths proposed by the Rust engine.</p></div>
+            </li>
+            <li>
+              <span class="step-number">03</span>
+              <div><h3>Confirm when ready</h3><p>Organize is a separate action with a fresh plan and explicit confirmation. Undo is available for safely reversible completed moves.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="docs-section section-wrap" id="documentation" aria-labelledby="docs-title">
+        <div class="docs-heading">
+          <p class="eyebrow">Made for the terminal</p>
+          <h2 id="docs-title">A clear path<br><span>from preview to action.</span></h2>
+          <p>Install when a verified release is available. Start with a read-only preview, then organize only after reviewing the plan.</p>
+        </div>
+        <div class="docs-panel">
+          <div class="docs-tabs" aria-label="Command examples"><span class="docs-tab-active">Quick start</span><span>macOS</span></div>
+          <div class="code-block">
+            <div><span class="code-comment"># Read-only preview</span></div>
+            <div><span class="code-prompt">$</span> shellsort ~/Downloads</div>
+            <div class="code-gap"><span class="code-comment"># Organize after reviewing the fresh plan</span></div>
+            <div><span class="code-prompt">$</span> shellsort organize ~/Downloads</div>
+          </div>
+          <div class="docs-panel-bottom"><span class="safe-mark" aria-hidden="true">✓</span><span>The first command never moves files.</span><a href="https://github.com/a1nbuselvan/Shellsort/blob/main/README.md" target="_blank" rel="noopener noreferrer">Full documentation <span aria-hidden="true">↗</span></a></div>
+        </div>
+      </section>
+
+      <section class="download-section section-wrap" id="download" aria-labelledby="download-title">
+        <div class="download-glow" aria-hidden="true"></div>
+        <div class="download-heading">
+          <p class="eyebrow">Shellsort for macOS</p>
+          <h2 id="download-title">Your files,<br><span>back in their place.</span></h2>
+          <p>The beta build passed native Apple Silicon and Intel build checks. Verified public release downloads are not available yet.</p>
+        </div>
+        <div class="download-card">
+          <div class="download-card-top">
+            <div class="version-mark"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 8.5h20M6 16h14M6 23.5h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="23.5" r="3.2" fill="currentColor"/></svg></span></div>
+            <div><span class="version-label">CURRENT BETA</span><h3>Shellsort <span>0.1.0-beta.1</span></h3></div>
+            <span class="coming-badge">Coming soon</span>
+          </div>
+          <div class="download-targets">
+            <div><span class="target-icon" aria-hidden="true">⌘</span><span><b>Apple Silicon</b><small>aarch64-apple-darwin</small></span><span class="target-soon">Coming soon</span></div>
+            <div><span class="target-icon target-icon-muted" aria-hidden="true">⌘</span><span><b>Intel</b><small>x86_64-apple-darwin</small></span><span class="target-soon">Coming soon</span></div>
+          </div>
+          <div class="download-card-note"><span aria-hidden="true">ⓘ</span> No published archive or checksum is available yet. Homebrew installation is not available.</div>
+        </div>
+        <div class="install-guide">
+          <div class="install-copy"><span class="install-step">01 / WHEN RELEASED</span><h3>Verify before installing.</h3><p>Choose the archive for your Mac. Verify its accompanying SHA-256 file before extracting or installing it.</p></div>
+          <pre class="install-code"><code><span class="code-comment"># Verify the downloaded archive</span>
+shasum -a 256 -c "$ARCHIVE.sha256"
+
+<span class="code-comment"># Install after verification</span>
+mkdir -p "$HOME/.local/bin"
+if [ -e "$HOME/.local/bin/shellsort" ] || [ -e "$HOME/.local/bin/organizer.sh" ]; then
+  echo "An executable already exists in ~/.local/bin; back it up or choose another install directory." >&2
+  exit 1
+fi
+tar -xzf "$ARCHIVE"
+install -m 755 shellsort "$HOME/.local/bin/shellsort"
+install -m 755 organizer.sh "$HOME/.local/bin/organizer.sh"</code></pre>
+        </div>
+        <p class="download-footnote">Before install, check that the destination executables do not already exist. See the README for the no-overwrite install steps, checksums, and uninstall instructions.</p>
+      </section>
+
+      <section class="closing-cta section-wrap" aria-label="Project links">
+        <div><p class="eyebrow">Open source. Local first.</p><h2>Good organization<br>starts with a good preview.</h2></div>
+        <a class="button button-outline" href="https://github.com/a1nbuselvan/Shellsort" target="_blank" rel="noopener noreferrer">Explore on GitHub <span aria-hidden="true">↗</span></a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <a class="brand footer-brand" href="./" aria-label="Shellsort home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 8.5h20M6 16h14M6 23.5h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="23.5" r="3.2" fill="currentColor"/></svg></span><span>shellsort</span></a>
+        <p>Preview first. Move with confidence.</p>
+        <div class="footer-links"><a href="https://github.com/a1nbuselvan/Shellsort" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a><a href="https://github.com/a1nbuselvan/Shellsort/blob/main/RELEASE.md" target="_blank" rel="noopener noreferrer">Release notes <span aria-hidden="true">↗</span></a></div>
+        <span class="copyright">© Shellsort contributors</span>
+      </div>
+    </footer>
+  </body>
+</html>
