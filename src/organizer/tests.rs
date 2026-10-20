@@ -1,8 +1,97 @@
 use super::{
-    Category, ConflictStatus, EngineErrorKind, RelativePath, ScanIssueKind, ScanWarningKind,
+    Category, ConflictStatus, EngineErrorKind, FileIdentity, FileOperationError,
+    FileOperationOutcome, FileOperationRecord, OperationRecord, OperationStatus,
+    OrganizationSettings, PlanStatus, RelativePath, ScanIssueKind, ScanWarningKind,
+    UnknownFileTypeBehavior,
     classification::{classify_file_name, extension_for_name},
-    generate_plan, scan_folder,
+    generate_plan, generate_plan_with_settings, scan_folder,
 };
+
+#[test]
+fn operation_history_model_covers_statuses_and_per_file_outcomes() {
+    let statuses = [
+        OperationStatus::Planned,
+        OperationStatus::InProgress,
+        OperationStatus::Completed,
+        OperationStatus::PartiallyCompleted,
+        OperationStatus::Failed,
+        OperationStatus::Reverted,
+    ];
+    assert_eq!(statuses.len(), 6);
+
+    let record = OperationRecord {
+        operation_id: "future-operation-id".to_owned(),
+        timestamp_unix_seconds: 1_800_000_000,
+        root_path: "/tmp/shellsort-fixture".to_owned(),
+        root_identity: FileIdentity {
+            device: 1,
+            inode: 4,
+            size_bytes: 0,
+            modified_seconds: 1_700_000_000,
+            modified_nanoseconds: 0,
+            changed_seconds: 1_700_000_000,
+            changed_nanoseconds: 0,
+        },
+        status: OperationStatus::PartiallyCompleted,
+        files: vec![
+            FileOperationRecord {
+                original_path: RelativePath::from_path(Path::new("incoming/report.pdf"))
+                    .expect("relative source"),
+                destination_path: RelativePath::from_path(Path::new("Documents/report.pdf"))
+                    .expect("relative destination"),
+                identity: FileIdentity {
+                    device: 1,
+                    inode: 2,
+                    size_bytes: 512,
+                    modified_seconds: 1_700_000_000,
+                    modified_nanoseconds: 0,
+                    changed_seconds: 1_700_000_000,
+                    changed_nanoseconds: 0,
+                },
+                destination_identity: None,
+                outcome: FileOperationOutcome::Completed,
+                error: None,
+                undo_error: None,
+                source_size_bytes_before: Some(512),
+                source_modified_unix_seconds_before: Some(1_700_000_000),
+                destination_size_bytes_after: Some(512),
+                destination_modified_unix_seconds_after: Some(1_800_000_000),
+            },
+            FileOperationRecord {
+                original_path: RelativePath::from_path(Path::new("incoming/broken.pdf"))
+                    .expect("relative source"),
+                destination_path: RelativePath::from_path(Path::new("Documents/broken.pdf"))
+                    .expect("relative destination"),
+                identity: FileIdentity {
+                    device: 1,
+                    inode: 3,
+                    size_bytes: 128,
+                    modified_seconds: 1_700_000_001,
+                    modified_nanoseconds: 0,
+                    changed_seconds: 1_700_000_001,
+                    changed_nanoseconds: 0,
+                },
+                destination_identity: None,
+                outcome: FileOperationOutcome::Failed,
+                error: Some(FileOperationError {
+                    kind: "future_io_error".to_owned(),
+                    message: "Example model data only".to_owned(),
+                }),
+                undo_error: None,
+                source_size_bytes_before: Some(128),
+                source_modified_unix_seconds_before: Some(1_700_000_001),
+                destination_size_bytes_after: None,
+                destination_modified_unix_seconds_after: None,
+            },
+        ],
+    };
+
+    assert_eq!(record.status, OperationStatus::PartiallyCompleted);
+    assert_eq!(record.files[0].outcome, FileOperationOutcome::Completed);
+    assert_eq!(record.files[0].destination_size_bytes_after, Some(512));
+    assert_eq!(record.files[1].outcome, FileOperationOutcome::Failed);
+    assert!(record.files[1].error.is_some());
+}
 use std::{
     collections::BTreeMap,
     fs,
@@ -85,7 +174,7 @@ fn plan_uses_the_expected_category_destination_folders() {
             .find(|entry| entry.file_name == file_name)
             .unwrap();
         assert_eq!(
-            entry.destination.as_str(),
+            entry.destination.as_ref().expect("destination").as_str(),
             format!("{folder_name}/{file_name}")
         );
     }
@@ -127,18 +216,50 @@ fn hidden_directories_build_directories_and_dotfiles_have_predictable_policy() {
         fs::create_dir(&ignored).expect("ignored directory");
         fs::write(ignored.join("inside.rs"), b"not included").expect("nested sample");
     }
-    fs::write(root.path().join(".DS_Store"), b"metadata").expect("metadata sample");
+    for name in [
+        ".DS_Store",
+        ".localized",
+        ".metadata_never_index",
+        "._photo.jpg",
+        "Icon\r",
+        ".VolumeIcon.icns",
+        ".LSOverride",
+        ".com.apple.timemachine.donotpresent",
+    ] {
+        fs::write(root.path().join(name), b"metadata").expect("macOS metadata sample");
+    }
+    for directory in [
+        ".Spotlight-V100",
+        ".Trashes",
+        ".fseventsd",
+        ".TemporaryItems",
+        ".DocumentRevisions-V100",
+        ".AppleDouble",
+        ".AppleDB",
+        ".AppleDesktop",
+    ] {
+        let metadata_dir = root.path().join(directory);
+        fs::create_dir(&metadata_dir).expect("macOS metadata directory");
+        fs::write(metadata_dir.join("inside.txt"), b"metadata").expect("metadata child");
+    }
     fs::write(root.path().join(".gitignore"), b"dotfile").expect("dotfile sample");
 
     let scan = scan_folder(root.path().to_str().expect("root path")).expect("scan");
-    assert_eq!(scan.files.len(), 2);
+    assert_eq!(scan.files.len(), 1);
     assert!(
         scan.files
             .iter()
             .all(|file| file.category == Category::Other)
     );
-    assert!(scan.files.iter().any(|file| file.file_name == ".DS_Store"));
     assert!(scan.files.iter().any(|file| file.file_name == ".gitignore"));
+    assert!(
+        scan.files
+            .iter()
+            .all(|file| !file.file_name.starts_with("._") && file.file_name != "Icon\r")
+    );
+    let plan = generate_plan(root.path().to_str().expect("root path")).expect("plan");
+    assert_eq!(plan.entries.len(), 1);
+    assert_eq!(plan.entries[0].source.as_str(), ".gitignore");
     assert!(
         scan.warnings
             .iter()
@@ -167,15 +288,20 @@ fn root_and_entries_that_are_symlinks_are_not_followed() {
         root.path().join("linked-file.pdf"),
     )
     .expect("file link");
+    let internal = root.path().join("real-folder");
+    fs::create_dir(&internal).expect("real internal folder");
+    fs::write(internal.join("inside.pdf"), b"inside").expect("internal file");
+    symlink(&internal, root.path().join("internal-alias")).expect("internal directory link");
 
     let scan = scan_folder(root.path().to_str().expect("root path")).expect("scan");
-    assert!(scan.files.is_empty());
+    assert_eq!(scan.files.len(), 1);
+    assert_eq!(scan.files[0].source.as_str(), "real-folder/inside.pdf");
     assert_eq!(
         scan.warnings
             .iter()
             .filter(|warning| warning.kind == ScanWarningKind::SymbolicLinkSkipped)
             .count(),
-        2
+        3
     );
 
     let root_link = root.path().join("root-alias");
@@ -208,6 +334,24 @@ fn non_unicode_names_are_skipped_with_a_warning_on_unix() {
             .iter()
             .any(|warning| { warning.kind == ScanWarningKind::InvalidUnicodeNameSkipped })
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn special_files_are_skipped_with_a_warning() {
+    use std::os::unix::net::UnixListener;
+
+    let root = tempdir().expect("temporary root");
+    let _socket = UnixListener::bind(root.path().join("local.sock")).expect("socket file");
+    let scan = scan_folder(root.path().to_str().expect("root path")).expect("scan");
+    assert!(scan.files.is_empty());
+    assert!(scan.warnings.iter().any(|warning| {
+        warning.kind == ScanWarningKind::NonRegularEntrySkipped
+            && warning
+                .path
+                .as_ref()
+                .is_some_and(|path| path.as_str() == "local.sock")
+    }));
 }
 
 #[test]
@@ -308,7 +452,196 @@ fn already_correct_files_are_reported_unchanged() {
         plan.entries[0].conflict_status,
         ConflictStatus::AlreadyCorrect
     );
-    assert_eq!(plan.entries[0].source, plan.entries[0].destination);
+    assert_eq!(
+        Some(plan.entries[0].source.clone()),
+        plan.entries[0].destination
+    );
+}
+
+#[test]
+fn disabled_category_keeps_each_file_visible_without_a_destination() {
+    let root = tempdir().expect("temporary root");
+    fs::write(root.path().join("report.pdf"), b"report").expect("source file");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Documents)
+        .expect("documents rule")
+        .enabled = false;
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("plan with disabled rule");
+    assert_eq!(plan.entries.len(), 1);
+    assert_eq!(plan.entries[0].status, PlanStatus::CategoryDisabled);
+    assert_eq!(plan.entries[0].destination, None);
+    assert!(
+        plan.entries[0]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("disabled")
+    );
+}
+
+#[test]
+fn unknown_extensions_follow_the_configured_keep_in_place_behavior() {
+    let root = tempdir().expect("temporary root");
+    fs::write(root.path().join("mystery.abc"), b"unknown").expect("source file");
+    let mut settings = OrganizationSettings {
+        unknown_file_types: UnknownFileTypeBehavior::KeepInPlace,
+        ..OrganizationSettings::default()
+    };
+    settings
+        .categories
+        .get_mut(&Category::Other)
+        .expect("other rule")
+        .destination = Some("Other Files".to_owned());
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("plan with unknown type behavior");
+    assert_eq!(plan.entries.len(), 1);
+    assert_eq!(plan.entries[0].category, Category::Other);
+    assert_eq!(plan.entries[0].status, PlanStatus::UnknownTypeKeptInPlace);
+    assert_eq!(plan.entries[0].destination, None);
+    assert!(plan.entries[0].reason.as_deref().unwrap().contains("stay"));
+}
+
+#[test]
+fn unknown_extensions_can_use_a_custom_other_destination() {
+    let root = tempdir().expect("temporary root");
+    fs::write(root.path().join("mystery.zzz"), b"unknown").expect("source file");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Other)
+        .expect("other rule")
+        .destination = Some("Review/Unsorted".to_owned());
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("plan with custom other destination");
+    let entry = plan.entries.first().expect("unknown file remains listed");
+    assert_eq!(entry.status, PlanStatus::Ready);
+    assert_eq!(
+        entry.destination.as_ref().unwrap().as_str(),
+        "Review/Unsorted/mystery.zzz"
+    );
+    assert!(!root.path().join("Review").exists());
+}
+
+#[test]
+fn enabled_category_without_destination_keeps_files_visible_with_reason() {
+    let root = tempdir().expect("temporary root");
+    fs::write(root.path().join("notes.pdf"), b"notes").expect("source file");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Documents)
+        .expect("documents rule")
+        .destination = None;
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("plan with intentionally unset destination");
+    assert_eq!(plan.entries.len(), 1);
+    assert_eq!(plan.entries[0].status, PlanStatus::NoDestinationConfigured);
+    assert_eq!(plan.entries[0].destination, None);
+    assert!(
+        plan.entries[0]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("No destination")
+    );
+}
+
+#[test]
+fn custom_destination_is_used_and_existing_collisions_are_reported() {
+    let root = tempdir().expect("temporary root");
+    fs::create_dir_all(root.path().join("incoming")).expect("source folder");
+    fs::write(root.path().join("incoming/notes.pdf"), b"source").expect("source file");
+    fs::write(root.path().join("Vault"), b"occupied parent component")
+        .expect("occupied destination parent");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Documents)
+        .expect("documents rule")
+        .destination = Some("Vault/Important Docs".to_owned());
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("custom destination plan");
+    let entry = plan
+        .entries
+        .iter()
+        .find(|entry| entry.file_name == "notes.pdf")
+        .expect("notes plan entry");
+    assert_eq!(
+        entry.destination.as_ref().unwrap().as_str(),
+        "Vault/Important Docs/notes.pdf"
+    );
+    assert_eq!(entry.conflict_status, ConflictStatus::ExistingDestination);
+    assert_eq!(entry.status, PlanStatus::Conflict);
+    assert_eq!(
+        fs::read(root.path().join("incoming/notes.pdf")).unwrap(),
+        b"source"
+    );
+    assert_eq!(
+        fs::read(root.path().join("Vault")).unwrap(),
+        b"occupied parent component"
+    );
+}
+
+#[test]
+fn custom_destination_proposals_detect_collisions_without_creating_directories() {
+    let root = tempdir().expect("temporary root");
+    fs::create_dir_all(root.path().join("first")).expect("first source folder");
+    fs::create_dir_all(root.path().join("second")).expect("second source folder");
+    fs::write(root.path().join("first/shared.pdf"), b"first").expect("first file");
+    fs::write(root.path().join("second/shared.pdf"), b"second").expect("second file");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Documents)
+        .expect("documents rule")
+        .destination = Some("Archive/Docs".to_owned());
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("custom destination plan");
+    let shared_entries: Vec<_> = plan
+        .entries
+        .iter()
+        .filter(|entry| entry.file_name == "shared.pdf")
+        .collect();
+    assert_eq!(shared_entries.len(), 2);
+    assert!(
+        shared_entries
+            .iter()
+            .all(|entry| entry.conflict_status == ConflictStatus::ProposedCollision)
+    );
+    assert!(!root.path().join("Archive").exists());
+}
+
+#[test]
+fn custom_unicode_destination_uses_existing_case_and_unicode_collision_rules() {
+    let root = tempdir().expect("temporary root");
+    fs::create_dir_all(root.path().join("first")).expect("first source folder");
+    fs::create_dir_all(root.path().join("second")).expect("second source folder");
+    fs::write(root.path().join("first/Shäre.pdf"), b"first").expect("first document");
+    fs::write(root.path().join("second/Sha\u{308}re.pdf"), b"second").expect("second document");
+    let mut settings = OrganizationSettings::default();
+    settings
+        .categories
+        .get_mut(&Category::Documents)
+        .expect("documents rule")
+        .destination = Some("Média/Files".to_owned());
+
+    let plan = generate_plan_with_settings(root.path().to_str().expect("root path"), &settings)
+        .expect("custom normalized destinations");
+    assert_eq!(plan.entries.len(), 2);
+    assert!(
+        plan.entries
+            .iter()
+            .all(|entry| { entry.conflict_status == ConflictStatus::ProposedCollision })
+    );
 }
 
 #[test]
@@ -319,7 +652,7 @@ fn unreadable_nested_directory_is_a_recoverable_issue_when_permissions_enforce_i
     let locked = root.path().join("locked");
     fs::create_dir(&locked).expect("nested folder");
     fs::write(locked.join("hidden.pdf"), b"sample").expect("nested file");
-    fs::set_permissions(&locked, fs::Permissions::from_mode(0)).expect("remove permissions");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o0)).expect("remove permissions");
 
     if fs::read_dir(&locked).is_ok() {
         fs::set_permissions(&locked, fs::Permissions::from_mode(0o700))

@@ -1,0 +1,34 @@
+[package]
+name = "shellsort"
+default-run = "shellsort"
+version = "0.1.0"
+description = "A safe macOS file organizer for the terminal"
+authors = ["Shellsort contributors"]
+edition = "2024"
+rust-version = "1.89"
+
+[lib]
+name = "shellsort_lib"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "shellsort"
+path = "src/bin/shellsort.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-normalization = "0.1"
+sha2 = "0.10"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

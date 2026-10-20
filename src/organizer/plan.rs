@@ -1,9 +1,10 @@
 use super::{
     model::{
-        ConflictStatus, EngineError, OrganizationPlan, PlanEntry, RelativePath, ScanIssue,
-        ScanIssueKind, ScanResult,
+        Category, ConflictStatus, EngineError, OrganizationPlan, PlanEntry, PlanStatus,
+        RelativePath, ScanIssue, ScanIssueKind, ScanResult,
     },
-    scan::scan_folder_with_root,
+    scan::{is_macos_metadata_path, scan_folder_with_root},
+    settings::{OrganizationSettings, UnknownFileTypeBehavior, ValidatedOrganizationSettings},
 };
 use std::{
     collections::HashMap,
@@ -13,16 +14,50 @@ use std::{
 use unicode_normalization::UnicodeNormalization;
 
 pub fn generate_plan(root_path: &str) -> Result<OrganizationPlan, EngineError> {
-    let (root, scan) = scan_folder_with_root(root_path)?;
-    plan_from_scan(root, scan)
+    generate_plan_with_settings(root_path, &OrganizationSettings::default())
 }
 
-fn plan_from_scan(root: PathBuf, mut scan: ScanResult) -> Result<OrganizationPlan, EngineError> {
+pub fn generate_plan_with_settings(
+    root_path: &str,
+    settings: &OrganizationSettings,
+) -> Result<OrganizationPlan, EngineError> {
+    let validated_settings = settings.validate()?;
+    let (root, scan) = scan_folder_with_root(root_path)?;
+    plan_from_scan(root, scan, &validated_settings)
+}
+
+fn plan_from_scan(
+    root: PathBuf,
+    mut scan: ScanResult,
+    settings: &ValidatedOrganizationSettings,
+) -> Result<OrganizationPlan, EngineError> {
+    scan.files
+        .retain(|file| !is_macos_metadata_path(&file.source));
     let mut destinations = Vec::with_capacity(scan.files.len());
     let mut proposed_counts: HashMap<String, usize> = HashMap::new();
 
     for file in &scan.files {
-        let destination_path = Path::new(file.category.folder_name()).join(&file.file_name);
+        let rule = settings
+            .categories
+            .get(&file.category)
+            .expect("validated settings include each category");
+        if !rule.enabled {
+            destinations.push((None, PlanStatus::CategoryDisabled));
+            continue;
+        }
+        if file.category == Category::Other
+            && settings.unknown_file_types == UnknownFileTypeBehavior::KeepInPlace
+        {
+            destinations.push((None, PlanStatus::UnknownTypeKeptInPlace));
+            continue;
+        }
+
+        let Some(destination_folder) = &rule.destination else {
+            destinations.push((None, PlanStatus::NoDestinationConfigured));
+            continue;
+        };
+
+        let destination_path = destination_folder.as_path().join(&file.file_name);
         let destination = RelativePath::from_path(&destination_path)?;
         let already_correct = destination == file.source;
         if !already_correct {
@@ -30,12 +65,41 @@ fn plan_from_scan(root: PathBuf, mut scan: ScanResult) -> Result<OrganizationPla
                 .entry(destination_collision_key(&destination))
                 .or_default() += 1;
         }
-        destinations.push((destination, already_correct));
+        destinations.push((
+            Some(destination),
+            if already_correct {
+                PlanStatus::Unchanged
+            } else {
+                PlanStatus::Ready
+            },
+        ));
     }
 
     let mut entries = Vec::with_capacity(scan.files.len());
-    for (file, (destination, already_correct)) in scan.files.into_iter().zip(destinations) {
-        if already_correct {
+    for (file, (destination, initial_status)) in scan.files.into_iter().zip(destinations) {
+        if destination.is_none() {
+            let (status, reason) = match initial_status {
+                PlanStatus::CategoryDisabled => (
+                    PlanStatus::CategoryDisabled,
+                    format!(
+                        "{} is disabled in the current rules; this file remains visible and has no proposed destination.",
+                        file.category.folder_name()
+                    ),
+                ),
+                PlanStatus::UnknownTypeKeptInPlace => (
+                    PlanStatus::UnknownTypeKeptInPlace,
+                    "Unknown file types are configured to stay in their current location."
+                        .to_owned(),
+                ),
+                PlanStatus::NoDestinationConfigured => (
+                    PlanStatus::NoDestinationConfigured,
+                    format!(
+                        "No destination is configured for {}; this file stays in its current location.",
+                        file.category.folder_name()
+                    ),
+                ),
+                _ => unreachable!("missing destinations have an explicit plan status"),
+            };
             entries.push(PlanEntry {
                 source: file.source,
                 destination,
@@ -43,6 +107,25 @@ fn plan_from_scan(root: PathBuf, mut scan: ScanResult) -> Result<OrganizationPla
                 extension: file.extension,
                 category: file.category,
                 size_bytes: file.size_bytes,
+                source_identity: file.identity,
+                status,
+                conflict_status: ConflictStatus::None,
+                reason: Some(reason),
+            });
+            continue;
+        }
+
+        let destination = destination.expect("destination checked above");
+        if initial_status == PlanStatus::Unchanged {
+            entries.push(PlanEntry {
+                source: file.source,
+                destination: Some(destination),
+                file_name: file.file_name,
+                extension: file.extension,
+                category: file.category,
+                size_bytes: file.size_bytes,
+                source_identity: file.identity,
+                status: PlanStatus::Unchanged,
                 conflict_status: ConflictStatus::AlreadyCorrect,
                 reason: Some("This file is already in its category folder.".to_owned()),
             });
@@ -101,11 +184,17 @@ fn plan_from_scan(root: PathBuf, mut scan: ScanResult) -> Result<OrganizationPla
 
         entries.push(PlanEntry {
             source: file.source,
-            destination,
+            destination: Some(destination),
             file_name: file.file_name,
             extension: file.extension,
             category: file.category,
             size_bytes: file.size_bytes,
+            source_identity: file.identity,
+            status: if conflict_status == ConflictStatus::None {
+                PlanStatus::Ready
+            } else {
+                PlanStatus::Conflict
+            },
             conflict_status,
             reason,
         });
@@ -121,6 +210,7 @@ fn plan_from_scan(root: PathBuf, mut scan: ScanResult) -> Result<OrganizationPla
 
     Ok(OrganizationPlan {
         root_path: scan.root_path,
+        root_identity: scan.root_identity,
         entries,
         warnings: scan.warnings,
         issues: scan.issues,

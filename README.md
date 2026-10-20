@@ -1,76 +1,74 @@
+# Shellsort
 
-# Automatic File Organizer
+Shellsort is a native Rust command-line file organizer for macOS. A folder scan prints a read-only preview; files move only after a fresh plan and explicit confirmation. No desktop app, web server, or background service is required.
 
-A beginner-friendly Bash script that automatically organizes files into folders based on their file extensions.
+The original `organizer.sh` name remains available as a compatibility wrapper. It calls the installed `shellsort` executable from `PATH` and uses the same preview, confirmation, and safety checks.
 
-## Features
+## Install for local development
 
-- Organizes PDFs, images, documents, audio, videos, and scripts.
-- Creates destination folders automatically.
-- Skips directories and non-files.
-- Avoids overwriting files when the destination filename already exists.
-- Reports file movements in the terminal.
+Requirements: Rust stable via [rustup](https://rustup.rs/) and Xcode Command Line Tools on macOS when required by the Rust toolchain.
 
-## Requirements
+From the repository root:
 
-- macOS or a Unix-like operating system
-- Bash
-- Git (optional, for version control)
-
-## Project Structure
-
-```text
-Shellsort/
-├── organizer.sh
-├── test_files/
-├── README.md
-└── LICENSE
+```sh
+cargo install --locked --path . --root "$HOME/.local"
+install -m 755 organizer.sh "$HOME/.local/bin/organizer.sh"
+export PATH="$HOME/.local/bin:$PATH"
+shellsort --version
 ```
 
-## Usage
+This installs a local development build. Shellsort is not currently published on Homebrew. See [RELEASE.md](RELEASE.md) for release and custom-tap preparation details.
 
-Clone the repository:
+## Use
 
-```bash
-git clone https://github.com/a1nbuselvan/Shellsort.git
-cd Shellsort
+Preview is the default and does not change files:
+
+```sh
+shellsort ~/Downloads
+shellsort ~/Downloads --json
+shellsort duplicates ~/Downloads
 ```
 
-Run the organizer on a test directory:
+Organizing shows a fresh plan and asks for the explicit confirmation phrase:
 
-```bash
-bash organizer.sh test_files
+```sh
+shellsort organize ~/Downloads
 ```
 
-## Supported Categories
+The compatibility script can be run from any working directory after installing both commands:
 
-| Extensions | Folder |
-|---|---|
-| pdf | PDFs |
-| jpg, jpeg, png, gif | Images |
-| txt, doc, docx | Documents |
-| mp3, wav | Audio |
-| mp4, mov | Videos |
-| sh | Scripts |
-| Other extensions | Others |
-
-## Testing
-
-Create sample files inside `test_files/` and run the script. Inspect the results with:
-
-```bash
-find test_files -print
+```sh
+organizer.sh ~/Downloads
 ```
 
-**Warning:** The script moves files. Test with sample files before using it on important data.
+The CLI also provides local operation history, recovery, resume, and undo:
 
-## Future Improvements
+```sh
+shellsort history
+shellsort recover
+shellsort resume ~/Downloads <operation-id>
+shellsort undo ~/Downloads <operation-id>
+```
 
-- Add a dry-run mode.
-- Improve extension matching.
-- Handle duplicate filenames more flexibly.
-- Add additional file categories.
+Mutating commands require interactive confirmation. Use `--yes` only when explicitly authorizing a non-interactive operation. Test exclusively with disposable folders; do not use personal files for development checks.
 
-## Author
+## Safety and behavior
 
-Anbuselvan
+- Scanning and planning inspect file metadata and do not read file contents.
+- Exact duplicate detection is an explicit command and reads file bytes locally for matching candidates; no data is uploaded.
+- Symbolic links and special filesystem entries are rejected or skipped. Unsafe roots and paths are refused.
+- Existing destinations are never overwritten. Cross-filesystem moves are rejected.
+- Operations use a local durable journal and support recovery and safe undo.
+- File moves, recovery, resume, and undo are enabled only on macOS. Other targets refuse those operations without modifying the selected folder.
+- `.DS_Store`, AppleDouble sidecars (`._*`), and known macOS metadata paths are excluded from organization.
+
+## Development checks
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+git diff --check
+```
+
+Tests use temporary directories and disposable files. For architecture targets, release artifacts, checksums, and Homebrew tap instructions, see [RELEASE.md](RELEASE.md).

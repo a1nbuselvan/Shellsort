@@ -1,8 +1,8 @@
 use super::{
     classification::{classify_file_name, is_hidden_file},
     model::{
-        EngineError, EngineErrorKind, FileMetadata, RelativePath, ScanIssue, ScanIssueKind,
-        ScanResult, ScanWarning, ScanWarningKind,
+        EngineError, EngineErrorKind, FileIdentity, FileMetadata, RelativePath, ScanIssue,
+        ScanIssueKind, ScanResult, ScanWarning, ScanWarningKind,
     },
 };
 use std::{
@@ -36,9 +36,28 @@ pub(super) fn scan_folder_with_root(root_path: &str) -> Result<(PathBuf, ScanRes
 
     let root = fs::canonicalize(requested_root)
         .map_err(|error| map_root_error(error, "Could not resolve the selected folder."))?;
+    let root_recheck = fs::symlink_metadata(requested_root)
+        .map_err(|error| map_root_error(error, "Could not recheck the selected folder."))?;
+    if root_recheck.file_type().is_symlink() || !root_recheck.is_dir() {
+        return Err(EngineError::new(
+            EngineErrorKind::RootIsSymbolicLink,
+            "The selected folder changed while it was being validated. Choose it again.",
+        ));
+    }
+    let root_recheck_canonical = fs::canonicalize(requested_root)
+        .map_err(|error| map_root_error(error, "Could not recheck the selected folder."))?;
+    if root_recheck_canonical != root {
+        return Err(EngineError::new(
+            EngineErrorKind::InvalidRootPath,
+            "The selected folder changed while it was being validated. Choose it again.",
+        ));
+    }
 
     let mut result = ScanResult {
         root_path: root.to_string_lossy().into_owned(),
+        root_identity: file_identity(&fs::symlink_metadata(&root).map_err(|error| {
+            map_root_error(error, "Could not inspect the selected folder identity.")
+        })?),
         files: Vec::new(),
         warnings: Vec::new(),
         issues: Vec::new(),
@@ -130,13 +149,15 @@ fn scan_directory(
     }
 
     match fs::canonicalize(directory) {
-        Ok(canonical) if canonical.starts_with(root) => {}
+        // The path being scanned was derived from the canonical root. Requiring
+        // exact equality also rejects a symlink that points back inside the root.
+        Ok(canonical) if canonical == directory => {}
         Ok(_) => {
             result.issues.push(issue_for_path(
                 root,
                 directory,
                 ScanIssueKind::PathOutsideRoot,
-                "This folder resolves outside the selected root and was skipped.".to_owned(),
+                "This folder resolves through a symbolic link or outside the selected root and was skipped.".to_owned(),
             ));
             return Ok(());
         }
@@ -152,6 +173,31 @@ fn scan_directory(
                 directory,
                 ScanIssueKind::MetadataReadFailed,
                 format!("Could not resolve this folder: {error}"),
+            ));
+            return Ok(());
+        }
+    }
+
+    // Recheck as close as possible to read_dir. This narrows path replacement
+    // races; the scan remains a non-atomic snapshot if another process mutates
+    // the folder concurrently.
+    match fs::symlink_metadata(directory) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {}
+        Ok(_) => {
+            result.issues.push(issue_for_path(
+                root,
+                directory,
+                ScanIssueKind::PathOutsideRoot,
+                "This folder changed while scanning and was skipped.".to_owned(),
+            ));
+            return Ok(());
+        }
+        Err(error) => {
+            result.issues.push(issue_for_path(
+                root,
+                directory,
+                ScanIssueKind::MetadataReadFailed,
+                format!("Could not recheck this folder before reading it: {error}"),
             ));
             return Ok(());
         }
@@ -211,6 +257,10 @@ fn scan_directory(
             }
         };
 
+        if is_macos_metadata_name(file_name_text) {
+            continue;
+        }
+
         if file_type.is_symlink() {
             result.warnings.push(ScanWarning {
                 path: relative_path(root, &path).ok(),
@@ -250,7 +300,11 @@ fn scan_directory(
                         message: "Symbolic links are skipped and are never followed.".to_owned(),
                     });
                 }
-                Ok(_) => {}
+                Ok(_) => result.warnings.push(ScanWarning {
+                    path: relative_path(root, &path).ok(),
+                    kind: ScanWarningKind::NonRegularEntrySkipped,
+                    message: "This entry changed type while scanning and was skipped.".to_owned(),
+                }),
                 Err(error) => result.issues.push(issue_for_path(
                     root,
                     &path,
@@ -280,7 +334,15 @@ fn scan_directory(
                 });
                 continue;
             }
-            Ok(_) => continue,
+            Ok(_) => {
+                result.warnings.push(ScanWarning {
+                    path: relative_path(root, &path).ok(),
+                    kind: ScanWarningKind::NonRegularEntrySkipped,
+                    message: "This entry changed to a non-regular filesystem type and was skipped."
+                        .to_owned(),
+                });
+                continue;
+            }
             Err(error) => {
                 result.issues.push(issue_for_path(
                     root,
@@ -317,6 +379,40 @@ fn scan_directory(
     Ok(())
 }
 
+pub(super) fn is_macos_metadata_path(path: &RelativePath) -> bool {
+    path.as_path().components().any(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .is_some_and(is_macos_metadata_name)
+    })
+}
+
+fn is_macos_metadata_name(name: &str) -> bool {
+    name.starts_with("._")
+        || matches!(
+            name,
+            ".DS_Store"
+                | ".localized"
+                | ".metadata_never_index"
+                | "Icon\r"
+                | ".VolumeIcon.icns"
+                | ".LSOverride"
+                | ".Spotlight-V100"
+                | ".Trashes"
+                | ".fseventsd"
+                | ".TemporaryItems"
+                | ".DocumentRevisions-V100"
+                | ".AppleDouble"
+                | ".AppleDB"
+                | ".AppleDesktop"
+                | "Temporary Items"
+                | "Network Trash Folder"
+                | "__MACOSX"
+                | ".com.apple.timemachine.donotpresent"
+        )
+}
+
 fn file_metadata(
     source: RelativePath,
     file_name: &str,
@@ -331,12 +427,47 @@ fn file_metadata(
         extension,
         category,
         size_bytes: metadata.len(),
+        identity: file_identity(metadata),
         modified_unix_seconds: metadata
             .modified()
             .ok()
             .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
             .map(|duration| duration.as_secs()),
         hidden,
+    }
+}
+
+fn file_identity(metadata: &Metadata) -> FileIdentity {
+    #[cfg(unix)]
+    use std::os::unix::fs::MetadataExt;
+
+    let (modified_seconds, modified_nanoseconds) = metadata
+        .modified()
+        .ok()
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| (duration.as_secs() as i64, duration.subsec_nanos() as i64))
+        .unwrap_or((0, 0));
+
+    FileIdentity {
+        #[cfg(unix)]
+        device: metadata.dev(),
+        #[cfg(not(unix))]
+        device: 0,
+        #[cfg(unix)]
+        inode: metadata.ino(),
+        #[cfg(not(unix))]
+        inode: 0,
+        size_bytes: metadata.len(),
+        modified_seconds,
+        modified_nanoseconds,
+        #[cfg(unix)]
+        changed_seconds: metadata.ctime(),
+        #[cfg(not(unix))]
+        changed_seconds: 0,
+        #[cfg(unix)]
+        changed_nanoseconds: metadata.ctime_nsec(),
+        #[cfg(not(unix))]
+        changed_nanoseconds: 0,
     }
 }
 
