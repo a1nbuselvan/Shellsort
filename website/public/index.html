@@ -187,21 +187,33 @@
           <div class="download-card-note"><span aria-hidden="true">ⓘ</span> Beta software; not Apple-notarized. Homebrew installation is not available.</div>
         </div>
         <div class="install-guide">
-          <div class="install-copy"><span class="install-step">01 / BETA RELEASE</span><h3>Verify before installing.</h3><p>Choose the archive for your Mac. Verify its accompanying SHA-256 file before extracting or installing it.</p></div>
-          <pre class="install-code"><code><span class="code-comment"># Verify the downloaded archive</span>
+          <div class="install-copy"><span class="install-step">MAC INSTALLATION GUIDE</span><h3>Install Shellsort on your Mac.</h3><p>Download the archive and matching checksum above. Open Terminal, paste this command, and continue only if the checksum says <strong>OK</strong>. It detects Apple Silicon or Intel, verifies the download before extracting it, and stops if it would replace an installed command.</p></div>
+          <pre class="install-code"><code><span class="code-comment"># Verify, extract, and install the matching Mac build</span>
+set -eu
+case "$(uname -m)" in
+  arm64)
+    ARCHIVE="shellsort-v0.1.0-beta.1-aarch64-apple-darwin.tar.gz"
+    FOLDER="shellsort-arm64" ;;
+  x86_64)
+    ARCHIVE="shellsort-v0.1.0-beta.1-x86_64-apple-darwin.tar.gz"
+    FOLDER="shellsort-intel" ;;
+  *) echo "This Mac architecture is not supported." >&amp;2; exit 1 ;;
+esac
+cd "$HOME/Downloads"
 shasum -a 256 -c "$ARCHIVE.sha256"
-
-<span class="code-comment"># Install after verification</span>
+mkdir -p "$HOME/Downloads/$FOLDER"
+tar -xzf "$ARCHIVE" -C "$HOME/Downloads/$FOLDER"
 mkdir -p "$HOME/.local/bin"
-if [ -e "$HOME/.local/bin/shellsort" ] || [ -e "$HOME/.local/bin/organizer.sh" ]; then
-  echo "An executable already exists in ~/.local/bin; back it up or choose another install directory." >&2
+if [ -e "$HOME/.local/bin/shellsort" ] || [ -L "$HOME/.local/bin/shellsort" ] || [ -e "$HOME/.local/bin/organizer.sh" ] || [ -L "$HOME/.local/bin/organizer.sh" ]; then
+  echo "A Shellsort command already exists in ~/.local/bin. Keep it or move it before installing." &gt;&amp;2
   exit 1
 fi
-tar -xzf "$ARCHIVE"
-install -m 755 shellsort "$HOME/.local/bin/shellsort"
-install -m 755 organizer.sh "$HOME/.local/bin/organizer.sh"</code></pre>
+install -m 755 "$HOME/Downloads/$FOLDER/shellsort" "$HOME/.local/bin/shellsort"
+install -m 755 "$HOME/Downloads/$FOLDER/organizer.sh" "$HOME/.local/bin/organizer.sh"</code></pre>
         </div>
-        <p class="download-footnote">Before install, check that the destination executables do not already exist. See the README for the no-overwrite install steps, checksums, and uninstall instructions.</p>
+        <div class="download-footnote"><p><strong>If <code>shellsort</code> is not found</strong>, add its install folder to zsh and reload your shell:</p><pre class="install-code"><code>grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2&gt;/dev/null || echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; "$HOME/.zshrc"
+source "$HOME/.zshrc"
+shellsort --version</code></pre><p>Try a read-only preview with <code>shellsort ~/Downloads</code>. To organize, run <code>shellsort organize ~/Downloads</code> and review the fresh plan before confirming. Shellsort is beta software and is not signed or notarized by Apple. Homebrew is not available yet.</p></div>
       </section>
 
       <section class="closing-cta section-wrap" aria-label="Project links">
